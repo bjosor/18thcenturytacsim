@@ -12,11 +12,13 @@ class unit(pygame.sprite.Sprite):
 
     def __init__(self,pos):
         pygame.sprite.Sprite.__init__(self, self.groups)
+        self.image = pygame.image.load("dot.png")
         self.pos = pos
 
+##-------------menu stuff---------------------------
+
 class MenuItem(pygame.font.Font):
-    def __init__(self, text, font=None, font_size=30,
-                 font_color=(255, 255, 255), (pos_x, pos_y)=(0, 0)):
+    def __init__(self, text, font=None, font_size=30, font_color=(255, 255, 255), pos_x=0, pos_y=0):
         pygame.font.Font.__init__(self, font, font_size)
         self.text = text
         self.font_size = font_size
@@ -33,9 +35,9 @@ class MenuItem(pygame.font.Font):
         self.pos_x = x
         self.pos_y = y
 
-    def is_mouse_selection(self, (posx, posy)):
-        if (posx >= self.pos_x and posx <= self.pos_x + self.width) and \
-            (posy >= self.pos_y and posy <= self.pos_y + self.height):
+    def is_mouse_selection(self, pos):
+        if (pos[0] >= self.pos_x and pos[0] <= self.pos_x + self.width) and \
+            (pos[1] >= self.pos_y and pos[1] <= self.pos_y + self.height):
                 return True
         return False
 
@@ -103,6 +105,8 @@ class GameMenu():
                 self.screen.blit(item.label, item.position)
  
             pygame.display.flip()
+
+##------------------------------------------------------------
     
     
 def terminate():
