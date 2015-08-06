@@ -9,16 +9,18 @@ class Config(object):
     fps = 40
 
 class unit(pygame.sprite.Sprite):
+    count = 0
 
-    def __init__(self,pos):
-        pygame.sprite.Sprite.__init__(self, self.groups)
-        self.image = pygame.image.load("dot.png")
-        self.pos = pos
-
-##-------------menu stuff---------------------------
+    def __init__(self,pos,groups):
+        pygame.sprite.Sprite.__init__(self, groups)
+        self.image = pygame.image.load("blue_dot.png")
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.name = unit.count
+        unit.count += 1
 
 class MenuItem(pygame.font.Font):
-    def __init__(self, text, font=None, font_size=30, font_color=(255, 255, 255), pos_x=0, pos_y=0):
+    def __init__(self, text, font=None, font_size=30, font_color=(255, 255, 255), pos= (0,0)):
         pygame.font.Font.__init__(self, font, font_size)
         self.text = text
         self.font_size = font_size
@@ -26,9 +28,9 @@ class MenuItem(pygame.font.Font):
         self.label = self.render(self.text, 1, self.font_color)
         self.width = self.label.get_rect().width
         self.height = self.label.get_rect().height
-        self.pos_x = pos_x
-        self.pos_y = pos_y
-        self.position = pos_x, pos_y
+        self.position = pos
+        self.posx = self.position[0]
+        self.posy = self.position[1]
  
     def set_position(self, x, y):
         self.position = (x, y)
@@ -105,8 +107,6 @@ class GameMenu():
                 self.screen.blit(item.label, item.position)
  
             pygame.display.flip()
-
-##------------------------------------------------------------
     
     
 def terminate():
@@ -116,10 +116,14 @@ def terminate():
 def main():
 
     screen=pygame.display.set_mode((Config.width,Config.height))
+    background = screen.copy()
     clock = pygame.time.Clock()
     playtime = 0
+    spritegroup = pygame.sprite.Group()
+    unitdict = {}
 
-    screen.fill((255,255,255))
+    background.fill((255,255,255))
+    screen.blit(background,(0,0))
 
     mainloop = True
     while mainloop == True:
@@ -136,7 +140,12 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     terminate()
                     mainloop = False # exit game
+                if event.key == pygame.K_p:
+                    unitdict[unit.count] = unit(pygame.mouse.get_pos(),spritegroup)
+                    
 
+        spritegroup.clear(screen,background)
+        spritegroup.draw(screen)
         pygame.display.flip()
         
         
