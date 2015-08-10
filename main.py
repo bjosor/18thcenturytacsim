@@ -6,18 +6,67 @@ class Config(object):
 
     width = 800
     height = 600
+    cornerpoint = (0,0)
     fps = 40
 
-class unit(pygame.sprite.Sprite):
+class Unit(pygame.sprite.Sprite):
     count = 0
-
+    selected = []
+    img = [pygame.image.load('blue_dot.png'),pygame.image.load('blue_dot_sel.png')]
+    ## Contains the base information of the instance
     def __init__(self,pos,groups):
-        pygame.sprite.Sprite.__init__(self, groups)
-        self.image = pygame.image.load("blue_dot.png")
+        pygame.sprite.Sprite.__init__(self,groups)
+        Unit.count += 1
+        self.image = Unit.img[0]
         self.rect = self.image.get_rect()
-        self.rect.center = pos
-        self.name = unit.count
-        unit.count += 1
+        self.trueX = pos[0]
+        self.trueY = pos[1]
+        self.rect.center = (self.trueX,self.trueY)
+        self.target = None
+        self.speed = 5
+
+
+    ##used each frame to update the state of the instance
+    def update(self,seconds):
+        self.rect.center = array_to_screen((self.trueX,self.trueY))
+
+        #if a target has been set, move towards it and stop when reached
+        if  self.target != None:
+            deltaX = self.target[0] - self.trueX
+            deltaY = self.target[1] - self.trueY
+            distance = math.sqrt(deltaX * deltaX + deltaY * deltaY)
+            deltaX /= distance
+            deltaY /= distance
+          
+            self.trueX += self.speed * deltaX * seconds
+            self.trueY += self.speed * deltaY * seconds
+            
+            self.rect.center = array_to_screen((self.trueX,self.trueY))
+            
+            array_rectcoords = screen_to_array(self.rect.center)
+            
+            if array_rectcoords[0]-0.1 <= self.target[0] < array_rectcoords[0]+0.1:
+                if array_rectcoords[1]-0.1 <= self.target[1] < array_rectcoords[1]+0.1:
+                    self.rect.center = array_to_screen(self.target)
+                    self.target = None
+
+
+            
+
+    ## marks a unit as selected if clicked on, and deselects it if you click elsewhere
+    def selection(self):
+        if self.rect.collidepoint((pygame.mouse.get_pos())):
+            if not self in Unit.selected:
+                Unit.selected.append(self)
+                self.image = Unit.img[1]
+                print(Unit.selected)
+            
+
+        elif not self.rect.collidepoint((pygame.mouse.get_pos())):
+            if self in Unit.selected:
+                Unit.selected.remove(self)
+                self.image = Unit.img[0]
+                print(Unit.selected)
 
 class MenuItem(pygame.font.Font):
     def __init__(self, text, font=None, font_size=30, font_color=(255, 255, 255), pos= (0,0)):
@@ -107,6 +156,53 @@ class GameMenu():
                 self.screen.blit(item.label, item.position)
  
             pygame.display.flip()
+
+def screen_to_array(screen_coords):
+    #takes a coordinate tuple and converts it from screen coords to array coords
+    screen_coords = list(screen_coords)
+    screen_coords[0] = (screen_coords[0]/64) + Config.cornerpoint[0]
+    screen_coords[1] = (screen_coords[1]/64) + Config.cornerpoint[1]
+    return tuple(screen_coords)
+
+def array_to_screen(array_coords):
+    #takes a coordinate tuple and converts it from array coords to screen coords
+    array_coords = list(array_coords)
+    array_coords[0] = array_coords[0]*64 - Config.cornerpoint[0]*64
+    array_coords[1] = array_coords[1]*64 - Config.cornerpoint[1]*64
+    return tuple(array_coords)
+
+def scroll():
+    scrollx = 0
+    scrolly = 0
+    pressedkeys = pygame.key.get_pressed()
+    # --- handle Cursor keys to scroll map ----
+    if pressedkeys[pygame.K_LEFT]:
+        scrollx -= config.scrollstepx
+    if pressedkeys[pygame.K_RIGHT]:
+        scrollx += config.scrollstepx
+    if pressedkeys[pygame.K_UP]:
+        scrolly -= config.scrollstepy
+    if pressedkeys[pygame.K_DOWN]:
+        scrolly += config.scrollstepy
+        # -------- scroll the visible part of the map ------
+    config.cornerpoint[0] += scrollx
+    config.cornerpoint[1] += scrolly
+#--------- do not scroll out of bigmap edge -----
+    if config.cornerpoint[0] < 0:
+        config.cornerpoint[0] = 0
+        scrollx = 0
+    elif config.cornerpoint[0] > config.mapsize[0] - int(config.screensize[0]/64+1):
+        config.cornerpoint[0] = config.mapsize[0] - int(config.screensize[0]/64+1)
+        scrollx = 0
+    if config.cornerpoint[1] < 0:
+        config.cornerpoint[1] = 0
+        scrolly = 0
+    elif config.cornerpoint[1] > config.mapsize[1] - int(config.screensize[1]/64+2):
+        config.cornerpoint[1] = config.mapsize[1] - int(config.screensize[1]/64+2)
+        scrolly = 0
+
+def rect_from_topleft_botright(topleft,botright):
+    newrect = pygame.rect(topleft,(botright[0]-topleft[0],botright[1]-topleft[1]))
     
     
 def terminate():
@@ -116,7 +212,7 @@ def terminate():
 def main():
 
     screen=pygame.display.set_mode((Config.width,Config.height))
-    background = screen.copy()
+    background = pygame.Surface((1000,2000))
     clock = pygame.time.Clock()
     playtime = 0
     spritegroup = pygame.sprite.Group()
@@ -141,7 +237,19 @@ def main():
                     terminate()
                     mainloop = False # exit game
                 if event.key == pygame.K_p:
-                    unitdict[unit.count] = unit(pygame.mouse.get_pos(),spritegroup)
+                    unitdict[Unit.count] = Unit(pygame.mouse.get_pos(),spritegroup)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    for key, value in unitdict.items():
+                        value.selection()
+                    
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    
+                    
+
+        
+                
                     
 
         spritegroup.clear(screen,background)
