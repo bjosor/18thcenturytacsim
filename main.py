@@ -3,11 +3,15 @@ import pygame, math, sys
 pygame.init()
 
 class Config(object):
-
+    
+    mapsize = (3000,2000)
     width = 800
     height = 600
-    cornerpoint = (0,0)
+    screensize = (width,height)
+    cornerpoint = [0,0]
     fps = 40
+    scrollstepx = 1
+    scrollstepy = 1
 
 class Unit(pygame.sprite.Sprite):
     count = 0
@@ -23,7 +27,8 @@ class Unit(pygame.sprite.Sprite):
         self.trueY = pos[1]
         self.rect.center = (self.trueX,self.trueY)
         self.target = None
-        self.speed = 5
+        self.speed = 1
+        self.radius = 1
 
 
     ##used each frame to update the state of the instance
@@ -171,40 +176,59 @@ def array_to_screen(array_coords):
     array_coords[1] = array_coords[1]*64 - Config.cornerpoint[1]*64
     return tuple(array_coords)
 
-def scroll():
+def scroll(background):
     scrollx = 0
     scrolly = 0
     pressedkeys = pygame.key.get_pressed()
     # --- handle Cursor keys to scroll map ----
     if pressedkeys[pygame.K_LEFT]:
-        scrollx -= config.scrollstepx
+        scrollx -= Config.scrollstepx
     if pressedkeys[pygame.K_RIGHT]:
-        scrollx += config.scrollstepx
+        scrollx += Config.scrollstepx
     if pressedkeys[pygame.K_UP]:
-        scrolly -= config.scrollstepy
+        scrolly -= Config.scrollstepy
     if pressedkeys[pygame.K_DOWN]:
-        scrolly += config.scrollstepy
+        scrolly += Config.scrollstepy
         # -------- scroll the visible part of the map ------
-    config.cornerpoint[0] += scrollx
-    config.cornerpoint[1] += scrolly
-#--------- do not scroll out of bigmap edge -----
-    if config.cornerpoint[0] < 0:
-        config.cornerpoint[0] = 0
+    Config.cornerpoint[0] += scrollx
+    Config.cornerpoint[1] += scrolly
+    #--------- do not scroll out of bigmap edge -----
+    if Config.cornerpoint[0] < 0:
+        Config.cornerpoint[0] = 0
         scrollx = 0
-    elif config.cornerpoint[0] > config.mapsize[0] - int(config.screensize[0]/64+1):
-        config.cornerpoint[0] = config.mapsize[0] - int(config.screensize[0]/64+1)
+    elif Config.cornerpoint[0] > Config.mapsize[0] - int(Config.screensize[0]/64+1):
+        Config.cornerpoint[0] = Config.mapsize[0] - int(Config.screensize[0]/64+1)
         scrollx = 0
-    if config.cornerpoint[1] < 0:
-        config.cornerpoint[1] = 0
+    if Config.cornerpoint[1] < 0:
+        Config.cornerpoint[1] = 0
         scrolly = 0
-    elif config.cornerpoint[1] > config.mapsize[1] - int(config.screensize[1]/64+2):
-        config.cornerpoint[1] = config.mapsize[1] - int(config.screensize[1]/64+2)
+    elif Config.cornerpoint[1] > Config.mapsize[1] - int(Config.screensize[1]/64+2):
+        Config.cornerpoint[1] = Config.mapsize[1] - int(Config.screensize[1]/64+2)
         scrolly = 0
 
-def rect_from_topleft_botright(topleft,botright):
-    newrect = pygame.rect(topleft,(botright[0]-topleft[0],botright[1]-topleft[1]))
+    snapshot = background.subsurface((Config.cornerpoint[0],Config.cornerpoint[1],Config.width,Config.height))
+    return snapshot
+
+def circle_collision(a,b):
+    r = a.radius + b.radius
+    r*=r
+    return r < (a.trueX+b.trueX)^2+(a.trueY+b.trueY)^2
     
-    
+def screen_to_array(screen_coords):
+    #takes a coordinate tuple and converts it from screen coords to array coords
+    screen_coords = list(screen_coords)
+    screen_coords[0] = (screen_coords[0]/64) + Config.cornerpoint[0]
+    screen_coords[1] = (screen_coords[1]/64) + Config.cornerpoint[1]
+    return tuple(screen_coords)
+
+def array_to_screen(array_coords):
+    #takes a coordinate tuple and converts it from array coords to screen coords
+    array_coords = list(array_coords)
+    array_coords[0] = array_coords[0]*64 - Config.cornerpoint[0]*64
+    array_coords[1] = array_coords[1]*64 - Config.cornerpoint[1]*64
+    return tuple(array_coords)
+
+
 def terminate():
     pygame.quit()
     sys.exit()
@@ -212,7 +236,7 @@ def terminate():
 def main():
 
     screen=pygame.display.set_mode((Config.width,Config.height))
-    background = pygame.Surface((1000,2000))
+    background = pygame.Surface(Config.mapsize)
     clock = pygame.time.Clock()
     playtime = 0
     spritegroup = pygame.sprite.Group()
@@ -237,22 +261,25 @@ def main():
                     terminate()
                     mainloop = False # exit game
                 if event.key == pygame.K_p:
-                    unitdict[Unit.count] = Unit(pygame.mouse.get_pos(),spritegroup)
+                    unitdict[Unit.count] = Unit(screen_to_array(pygame.mouse.get_pos()),spritegroup)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     for key, value in unitdict.items():
                         value.selection()
-                    
-            if event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:
+                if event.button == 3:
+                    for i in Unit.selected:
+                        i.target = pygame.mouse.get_pos()
+                        i.target = screen_to_array(i.target)
+
                     
                     
 
-        
+        snapshot = scroll(background)
                 
-                    
-
-        spritegroup.clear(screen,background)
+        for key, value in unitdict.items():
+            value.update(seconds)
+            
+        spritegroup.clear(screen,snapshot)
         spritegroup.draw(screen)
         pygame.display.flip()
         
