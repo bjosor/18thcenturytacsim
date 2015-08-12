@@ -16,61 +16,65 @@ class Config(object):
 class Unit(pygame.sprite.Sprite):
     count = 0
     selected = []
-    img = [pygame.image.load('blue_dot.png'),pygame.image.load('blue_dot_sel.png')]
     ## Contains the base information of the instance
-    def __init__(self,pos,groups):
+    def __init__(self,pos,groups,graphics):
         pygame.sprite.Sprite.__init__(self,groups)
         Unit.count += 1
-        self.image = Unit.img[0]
+        self.image = graphics[0]
         self.rect = self.image.get_rect()
         self.trueX = pos[0]
         self.trueY = pos[1]
         self.rect.center = (self.trueX,self.trueY)
-        self.target = None
-        self.speed = 1
-        self.radius = 1
+        self.moveto = None
+        self.speed = 0
+        self.angle = 0
+        self.radius = 0.1
 
+
+
+    def target(self,target):
+        self.moveto = target
+        x = self.trueX - self.moveto[0]
+        y = self.trueY - self.moveto[1]
+        self.angle = math.atan2(y,x) - 0.5*math.pi
+        self.speed = 0.5
+
+    def move(self,seconds):
+        self.trueX += math.sin(self.angle) * self.speed * seconds
+        self.trueY -= math.cos(self.angle) * self.speed * seconds
 
     ##used each frame to update the state of the instance
     def update(self,seconds):
         self.rect.center = array_to_screen((self.trueX,self.trueY))
+       
 
         #if a target has been set, move towards it and stop when reached
-        if  self.target != None:
-            deltaX = self.target[0] - self.trueX
-            deltaY = self.target[1] - self.trueY
-            distance = math.sqrt(deltaX * deltaX + deltaY * deltaY)
-            deltaX /= distance
-            deltaY /= distance
-          
-            self.trueX += self.speed * deltaX * seconds
-            self.trueY += self.speed * deltaY * seconds
-            
-            self.rect.center = array_to_screen((self.trueX,self.trueY))
-            
-            array_rectcoords = screen_to_array(self.rect.center)
-            
-            if array_rectcoords[0]-0.1 <= self.target[0] < array_rectcoords[0]+0.1:
-                if array_rectcoords[1]-0.1 <= self.target[1] < array_rectcoords[1]+0.1:
-                    self.rect.center = array_to_screen(self.target)
-                    self.target = None
+        if  self.moveto != None:
+            x = self.trueX - self.moveto[0]
+            y = self.trueY - self.moveto[1]
+            self.angle = math.atan2(y,x) - 0.5*math.pi
+            self.move(seconds)
+            if self.rect.center == self.moveto:
+                print("stop")
+                self.speed = 0
+                self.moveto = None
 
 
             
 
     ## marks a unit as selected if clicked on, and deselects it if you click elsewhere
-    def selection(self):
+    def selection(self,graphics):
         if self.rect.collidepoint((pygame.mouse.get_pos())):
             if not self in Unit.selected:
                 Unit.selected.append(self)
-                self.image = Unit.img[1]
+                self.image = graphics[1]
                 print(Unit.selected)
             
 
         elif not self.rect.collidepoint((pygame.mouse.get_pos())):
             if self in Unit.selected:
                 Unit.selected.remove(self)
-                self.image = Unit.img[0]
+                self.image = graphics[0]
                 print(Unit.selected)
 
 class MenuItem(pygame.font.Font):
@@ -162,6 +166,13 @@ class GameMenu():
  
             pygame.display.flip()
 
+def collide(p1,p2):
+    dx = p1.trueX - p2.trueX
+    dy = p1.trueY - p2.trueY
+    distance = math.hypot(dx, dy)
+    if distance < p1.radius + p2.radius:
+        print("bang!")
+
 def screen_to_array(screen_coords):
     #takes a coordinate tuple and converts it from screen coords to array coords
     screen_coords = list(screen_coords)
@@ -234,13 +245,18 @@ def terminate():
     sys.exit()
 
 def main():
-
+    
+    
     screen=pygame.display.set_mode((Config.width,Config.height))
     background = pygame.Surface(Config.mapsize)
     clock = pygame.time.Clock()
     playtime = 0
     spritegroup = pygame.sprite.Group()
-    unitdict = {}
+    unitlist = []
+
+    graphics = [pygame.image.load('blue_dot.png').convert_alpha(),pygame.image.load('blue_dot_sel.png').convert_alpha()]
+    for i in graphics:
+        i.set_colorkey((255,255,255))
 
     background.fill((255,255,255))
     screen.blit(background,(0,0))
@@ -261,23 +277,26 @@ def main():
                     terminate()
                     mainloop = False # exit game
                 if event.key == pygame.K_p:
-                    unitdict[Unit.count] = Unit(screen_to_array(pygame.mouse.get_pos()),spritegroup)
+                    unitlist.append(Unit(screen_to_array(pygame.mouse.get_pos()),spritegroup,graphics))
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    for key, value in unitdict.items():
-                        value.selection()
+                    for unit in unitlist:
+                        unit.selection(graphics)
                 if event.button == 3:
                     for i in Unit.selected:
-                        i.target = pygame.mouse.get_pos()
-                        i.target = screen_to_array(i.target)
+                        target = screen_to_array(pygame.mouse.get_pos())
+                        i.target(target)
 
                     
                     
 
         snapshot = scroll(background)
                 
-        for key, value in unitdict.items():
-            value.update(seconds)
+        for i, unit in enumerate(unitlist):
+            unit.update(seconds)
+            for unit2 in unitlist[i+1:]:
+                collide(unit,unit2)
+            
             
         spritegroup.clear(screen,snapshot)
         spritegroup.draw(screen)
