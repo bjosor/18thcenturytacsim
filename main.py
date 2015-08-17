@@ -4,7 +4,8 @@ pygame.init()
 
 class Config(object):
     
-    mapsize = (3000,2000)
+    gridsquare_size = 32
+    mapsize = (2048,2048)
     width = 800
     height = 600
     screensize = (width,height)
@@ -44,7 +45,7 @@ class Unit(pygame.sprite.Sprite):
         self.trueY -= math.cos(self.angle) * self.speed * seconds
 
     ##used each frame to update the state of the instance
-    def update(self,seconds):
+    def update(self,seconds,impulse):
         self.rect.center = array_to_screen((self.trueX,self.trueY))
        
 
@@ -53,11 +54,15 @@ class Unit(pygame.sprite.Sprite):
             x = self.trueX - self.moveto[0]
             y = self.trueY - self.moveto[1]
             self.angle = math.atan2(y,x) - 0.5*math.pi
+            self.speed = self.speed+impulse
             self.move(seconds)
-            if self.rect.center == self.moveto:
-                print("stop")
-                self.speed = 0
-                self.moveto = None
+            array_rectcoords = screen_to_array(self.rect.center)
+            if array_rectcoords[0]-0.1 <= self.moveto[0] < array_rectcoords[0]+0.1:
+                    if array_rectcoords[1]-0.1 <= self.moveto[1] < array_rectcoords[1]+0.1:
+                        target = array_to_screen(self.moveto)
+                        trueX = target[0]
+                        trueY = target[1]
+                        self.moveto = None
 
 
             
@@ -176,15 +181,15 @@ def collide(p1,p2):
 def screen_to_array(screen_coords):
     #takes a coordinate tuple and converts it from screen coords to array coords
     screen_coords = list(screen_coords)
-    screen_coords[0] = (screen_coords[0]/64) + Config.cornerpoint[0]
-    screen_coords[1] = (screen_coords[1]/64) + Config.cornerpoint[1]
+    screen_coords[0] = (screen_coords[0]/Config.gridsquare_size) + Config.cornerpoint[0]
+    screen_coords[1] = (screen_coords[1]/Config.gridsquare_size) + Config.cornerpoint[1]
     return tuple(screen_coords)
 
 def array_to_screen(array_coords):
     #takes a coordinate tuple and converts it from array coords to screen coords
     array_coords = list(array_coords)
-    array_coords[0] = array_coords[0]*64 - Config.cornerpoint[0]*64
-    array_coords[1] = array_coords[1]*64 - Config.cornerpoint[1]*64
+    array_coords[0] = array_coords[0]*Config.gridsquare_size - Config.cornerpoint[0]*Config.gridsquare_size
+    array_coords[1] = array_coords[1]*Config.gridsquare_size - Config.cornerpoint[1]*Config.gridsquare_size
     return tuple(array_coords)
 
 def scroll(background):
@@ -207,37 +212,29 @@ def scroll(background):
     if Config.cornerpoint[0] < 0:
         Config.cornerpoint[0] = 0
         scrollx = 0
-    elif Config.cornerpoint[0] > Config.mapsize[0] - int(Config.screensize[0]/64+1):
-        Config.cornerpoint[0] = Config.mapsize[0] - int(Config.screensize[0]/64+1)
+    elif Config.cornerpoint[0] > Config.mapsize[0] - int(Config.screensize[0]/Config.gridsquare_size+1):
+        Config.cornerpoint[0] = Config.mapsize[0] - int(Config.screensize[0]/Config.gridsquare_size+1)
         scrollx = 0
     if Config.cornerpoint[1] < 0:
         Config.cornerpoint[1] = 0
         scrolly = 0
-    elif Config.cornerpoint[1] > Config.mapsize[1] - int(Config.screensize[1]/64+2):
-        Config.cornerpoint[1] = Config.mapsize[1] - int(Config.screensize[1]/64+2)
+    elif Config.cornerpoint[1] > Config.mapsize[1] - int(Config.screensize[1]/Config.gridsquare_size+2):
+        Config.cornerpoint[1] = Config.mapsize[1] - int(Config.screensize[1]/Config.gridsquare_size+2)
         scrolly = 0
 
     snapshot = background.subsurface((Config.cornerpoint[0],Config.cornerpoint[1],Config.width,Config.height))
     return snapshot
 
+def drawgrid(background):
+    for x in range(0,Config.mapsize[0],Config.gridsquare_size): #start, stop, step
+        pygame.draw.line(background, (200,200,200), (x,0), (x,Config.mapsize[1]))
+    for y in range(0,Config.mapsize[1],Config.gridsquare_size): #start, stop, step
+        pygame.draw.line(background, (200,200,200), (0,y), (Config.mapsize[0],y))
+
 def circle_collision(a,b):
     r = a.radius + b.radius
     r*=r
     return r < (a.trueX+b.trueX)^2+(a.trueY+b.trueY)^2
-    
-def screen_to_array(screen_coords):
-    #takes a coordinate tuple and converts it from screen coords to array coords
-    screen_coords = list(screen_coords)
-    screen_coords[0] = (screen_coords[0]/64) + Config.cornerpoint[0]
-    screen_coords[1] = (screen_coords[1]/64) + Config.cornerpoint[1]
-    return tuple(screen_coords)
-
-def array_to_screen(array_coords):
-    #takes a coordinate tuple and converts it from array coords to screen coords
-    array_coords = list(array_coords)
-    array_coords[0] = array_coords[0]*64 - Config.cornerpoint[0]*64
-    array_coords[1] = array_coords[1]*64 - Config.cornerpoint[1]*64
-    return tuple(array_coords)
 
 
 def terminate():
@@ -246,7 +243,7 @@ def terminate():
 
 def main():
     
-    
+    gridsize = 200
     screen=pygame.display.set_mode((Config.width,Config.height))
     background = pygame.Surface(Config.mapsize)
     clock = pygame.time.Clock()
@@ -254,11 +251,15 @@ def main():
     spritegroup = pygame.sprite.Group()
     unitlist = []
 
-    graphics = [pygame.image.load('blue_dot.png').convert_alpha(),pygame.image.load('blue_dot_sel.png').convert_alpha()]
+    mapgrid = [[0 for i in range(gridsize)]for j in range(gridsize)]
+
+    graphics = [pygame.image.load('blue_dot.png').convert(),
+                pygame.image.load('blue_dot_sel.png').convert()]
     for i in graphics:
-        i.set_colorkey((255,255,255))
+        i.set_colorkey((255,0,255))
 
     background.fill((255,255,255))
+    drawgrid(background)
     screen.blit(background,(0,0))
 
     mainloop = True
