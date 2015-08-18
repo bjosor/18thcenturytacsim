@@ -28,8 +28,10 @@ class Unit(pygame.sprite.Sprite):
         self.rect.center = (self.trueX,self.trueY)
         self.moveto = None
         self.speed = 0
+        self.speedimpulse = 0
         self.angle = 0
         self.radius = 0.1
+        self.drag = 0.5
 
 
 
@@ -45,7 +47,7 @@ class Unit(pygame.sprite.Sprite):
         self.trueY -= math.cos(self.angle) * self.speed * seconds
 
     ##used each frame to update the state of the instance
-    def update(self,seconds,impulse):
+    def update(self,seconds,impulse=0):
         self.rect.center = array_to_screen((self.trueX,self.trueY))
        
 
@@ -54,7 +56,8 @@ class Unit(pygame.sprite.Sprite):
             x = self.trueX - self.moveto[0]
             y = self.trueY - self.moveto[1]
             self.angle = math.atan2(y,x) - 0.5*math.pi
-            self.speed = self.speed+impulse
+            self.speedimpulse *= self.drag
+            self.speed = self.speed
             self.move(seconds)
             array_rectcoords = screen_to_array(self.rect.center)
             if array_rectcoords[0]-0.1 <= self.moveto[0] < array_rectcoords[0]+0.1:
@@ -171,12 +174,31 @@ class GameMenu():
  
             pygame.display.flip()
 
-def collide(p1,p2):
+def collide(p1, p2,elasticity = 1):
     dx = p1.trueX - p2.trueX
     dy = p1.trueY - p2.trueY
-    distance = math.hypot(dx, dy)
-    if distance < p1.radius + p2.radius:
-        print("bang!")
+    
+    dist = math.hypot(dx, dy)
+    if dist < p1.radius + p2.radius:
+        tangent = math.atan2(dy, dx)
+        angle = 0.5 * math.pi + tangent
+
+        angle1 = 2*tangent - p1.angle
+        angle2 = 2*tangent - p2.angle
+        speed1 = p2.speed*elasticity
+        speed2 = p1.speed*elasticity
+
+        (p1.angle, p1.speedimpulse) = (angle1, speed1)
+        (p2.angle, p2.speedimpulse) = (angle2, speed2)
+
+        coords = screen_to_array((math.sin(angle),math.cos(angle)))
+
+
+        p1.trueX += coords[0]
+        p1.trueY -= coords[1]
+        p2.trueX -= coords[0]
+        p2.trueY += coords[1]
+   
 
 def screen_to_array(screen_coords):
     #takes a coordinate tuple and converts it from screen coords to array coords
