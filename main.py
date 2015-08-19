@@ -14,6 +14,12 @@ class Config(object):
     scrollstepx = 1
     scrollstepy = 1
 
+class Formation(object):
+
+    def __init__(self,units):
+        self.units = units
+        
+
 class Unit(pygame.sprite.Sprite):
     count = 0
     selected = []
@@ -31,7 +37,7 @@ class Unit(pygame.sprite.Sprite):
         self.speedimpulse = 0
         self.angle = 0
         self.radius = 0.1
-        self.drag = 0.5
+        self.mass = 0.01
 
 
 
@@ -56,7 +62,7 @@ class Unit(pygame.sprite.Sprite):
             x = self.trueX - self.moveto[0]
             y = self.trueY - self.moveto[1]
             self.angle = math.atan2(y,x) - 0.5*math.pi
-            self.speedimpulse *= self.drag
+            self.speedimpulse *= self.mass
             self.speed = self.speed
             self.move(seconds)
             array_rectcoords = screen_to_array(self.rect.center)
