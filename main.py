@@ -11,14 +11,15 @@ class Config(object):
     screensize = (width,height)
     cornerpoint = [0,0]
     fps = 40
-    scrollstepx = 1
-    scrollstepy = 1
+    scrollstepx = 0.5
+    scrollstepy = 0.5
 
-class Formation(object):
+class Player(pygame.sprite.Sprite):
 
-    def __init__(self,units):
-        self.units = units
-        
+    def __init__(self)
+        self.health = 100
+        self.hunger = 100
+        self.speed = 10
 
 class Unit(pygame.sprite.Sprite):
     count = 0
